@@ -39,7 +39,7 @@ func main() {
 		if e != nil {
 			log.Fatal(e)
 		}
-		_, e = db.Exec(`INSERT INTO users(full_name,email,password_hash,role,is_active,must_change_password) VALUES($1,$2,$3,$4,TRUE,FALSE) ON CONFLICT(email) DO UPDATE SET full_name=EXCLUDED.full_name,password_hash=EXCLUDED.password_hash,role=EXCLUDED.role,is_active=TRUE,must_change_password=FALSE,updated_at=NOW()`, a.name, a.email, hash, a.role)
+		_, e = db.Exec(`INSERT INTO users(full_name,email,password_hash,role,is_active,must_change_password) VALUES($1,$2,$3,$4,TRUE,FALSE) ON CONFLICT(email) DO NOTHING`, a.name, a.email, hash, a.role)
 		if e != nil {
 			log.Fatal("Seed account ", a.email, ": ", e)
 		}

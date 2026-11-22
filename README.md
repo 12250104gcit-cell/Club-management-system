@@ -58,7 +58,7 @@ The root `render.yaml` Blueprint deploys the Go API, a PostgreSQL database, and 
 
 1. In Render, create a **New Blueprint Instance** and connect this GitHub repository on `main`.
 2. Review the resources. The Blueprint uses Render's free API and Postgres plans; enter a strong `SEED_PASSWORD` when prompted. It is used for the initial Admin and Student demo accounts.
-3. Render builds and deploys the services. The API's one-time initial deploy hook seeds the database, including clubs, demo students, one approved student membership, and sample open/closed polls.
+3. Render builds and deploys the services. The API initializes the schema and runs the seed command before starting, adding demo accounts, clubs, one approved student membership, and sample open/closed polls when missing. Seeding can run on restarts; it does not overwrite existing user accounts or passwords.
 4. Open `https://gcit-club-student.onrender.com/login`. Admin and Coordinator sign-ins use the same page and are handed off to their role's portal.
 
 The free Postgres plan is for demos: Render deletes free databases after 30 days. Upgrade the database before relying on it for persistent data. Free API instances can sleep when idle, so the first request after inactivity may take a little while.

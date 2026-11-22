@@ -5,9 +5,8 @@ services:
     plan: free
     region: singapore
     buildCommand: go build -o bin/server . && go build -o bin/seed ./cmd/seed
-    startCommand: ./bin/server
+    startCommand: ./bin/seed && ./bin/server
     healthCheckPath: /api/health
-    initialDeployHook: ./bin/seed
     envVars:
       - key: DATABASE_URL
         fromDatabase:
