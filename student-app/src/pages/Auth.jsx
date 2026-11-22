@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { saveAuthSession, saveSharedAuthToken } from "../data/storage";
-import { api, portalUrl } from "../data/api";
+import { api, redirectForRole } from "../data/api";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export default function Auth() {
   useEffect(() => {
     api("/auth/me").then(user => {
       if (user.role === "student") { saveAuthSession("", user); navigate(user.must_change_password ? "/change-password" : "/", { replace: true }); }
-      else window.location.replace(portalUrl(user.role));
+      else redirectForRole(user.role);
     }).catch(() => {});
   }, [navigate]);
 
@@ -43,7 +43,7 @@ export default function Auth() {
         const loginData = await api("/auth/login", { method: "POST", body: JSON.stringify({ email: formattedEmail, password }) });
         saveSharedAuthToken(loginData.token, loginData.user);
         if (loginData.user.role === "student") { saveAuthSession(loginData.token, loginData.user); navigate("/", { replace: true }); }
-        else window.location.replace(portalUrl(loginData.user.role));
+        else redirectForRole(loginData.user.role);
       } catch (e) {
         setError(e.message || "Could not connect to the server.");
       }
@@ -55,7 +55,7 @@ export default function Auth() {
       saveSharedAuthToken(data.token, data.user);
 
       if (data.user.role === "student") { saveAuthSession(data.token, data.user); navigate(data.user.must_change_password ? "/change-password" : "/", { replace: true }); }
-      else window.location.replace(portalUrl(data.user.role));
+      else redirectForRole(data.user.role);
     } catch (e) {
       setError(e.message || "Could not connect to the server.");
     }

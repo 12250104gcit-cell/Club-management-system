@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { api, portalUrl } from "../data/api";
+import { api, redirectForRole } from "../data/api";
 import { getAuthToken, saveAuthSession } from "../data/storage";
 
 export default function RequireAuth() {
@@ -9,7 +9,7 @@ export default function RequireAuth() {
   useEffect(() => {
     api("/auth/me").then(user => {
       if (user.role === "student") { saveAuthSession(getAuthToken() || "", user); setState(user.must_change_password ? "password-change" : "student"); }
-      else { window.location.replace(portalUrl(user.role)); }
+      else { redirectForRole(user.role); }
     }).catch(() => setState("signed-out"));
   }, []);
   if (state === "checking") return <p role="status">Checking your session…</p>;
