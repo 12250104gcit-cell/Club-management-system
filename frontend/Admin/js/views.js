@@ -502,8 +502,13 @@ const Views = (() => {
           confirm: { required: true, match: "next" },
         });
         if (!ok) return;
-        UI.toast("Password updated");
-        go("#/profile");
+        const submit = e.currentTarget.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        submit.textContent = "Saving…";
+        API.changePassword(root.querySelector("#current").value, root.querySelector("#next").value)
+          .then(() => { UI.toast("Password updated"); go("#/profile"); })
+          .catch((error) => UI.toast(error.message || "Could not change the password."))
+          .finally(() => { submit.disabled = false; submit.textContent = "Save Changes"; });
       });
     },
   });

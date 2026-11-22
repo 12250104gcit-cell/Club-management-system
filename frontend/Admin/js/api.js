@@ -20,6 +20,7 @@ const API = (() => {
     me() { return request("/auth/me"); },
     profile() { return request("/auth/profile"); },
     updateProfile(profile) { return request("/auth/profile", { method: "PUT", body: JSON.stringify(profile) }); },
+    changePassword(currentPassword, newPassword) { return request("/auth/change-password", { method: "PUT", body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) }); },
     async logout() { return request("/auth/logout", { method: "POST" }); },
     redirectForRole(role) { const baseUrl = `${window.location.protocol}//${window.location.hostname}`; const ports = { student: 5173, coordinator: 5174, admin: 5175 }; window.location.replace(`${baseUrl}:${ports[role] || ports.student}/`); },
     async login(email, password) { const d = await request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); if (d.user.role !== "admin") throw new Error("Use the portal for your account role."); localStorage.setItem("authToken", d.token); document.cookie = `club_token_share=${encodeURIComponent(d.token)}; Path=/; SameSite=Lax; Max-Age=86400`; document.cookie = `club_user_share=${encodeURIComponent(JSON.stringify(d.user))}; Path=/; SameSite=Lax; Max-Age=86400`; localStorage.setItem("adminUser", JSON.stringify(d.user)); return d.user; },
