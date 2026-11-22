@@ -1,0 +1,83 @@
+services:
+  - type: web
+    name: gcit-club-api
+    runtime: go
+    plan: free
+    region: singapore
+    buildCommand: go build -o bin/server . && go build -o bin/seed ./cmd/seed
+    startCommand: ./bin/server
+    healthCheckPath: /api/health
+    initialDeployHook: ./bin/seed
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gcit-club-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://gcit-club-student.onrender.com,https://gcit-club-coordinator.onrender.com,https://gcit-club-admin.onrender.com
+
+  - type: web
+    runtime: static
+    name: gcit-club-student
+    branch: sonam-frontend
+    rootDir: student-app
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://gcit-club-api.onrender.com/api
+      - key: VITE_STUDENT_URL
+        value: https://gcit-club-student.onrender.com/login
+      - key: VITE_COORDINATOR_URL
+        value: https://gcit-club-coordinator.onrender.com/
+      - key: VITE_ADMIN_URL
+        value: https://gcit-club-admin.onrender.com/
+      - key: NODE_VERSION
+        value: 22.16.0
+
+  - type: web
+    runtime: static
+    name: gcit-club-coordinator
+    branch: sprint-1
+    rootDir: coordinatorFrontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://gcit-club-api.onrender.com/api
+      - key: VITE_STUDENT_URL
+        value: https://gcit-club-student.onrender.com/login
+      - key: VITE_COORDINATOR_URL
+        value: https://gcit-club-coordinator.onrender.com/
+      - key: VITE_ADMIN_URL
+        value: https://gcit-club-admin.onrender.com/
+      - key: NODE_VERSION
+        value: 22.16.0
+
+  - type: web
+    runtime: static
+    name: gcit-club-admin
+    branch: main
+    rootDir: frontend/Admin
+    buildCommand: >-
+      echo 'window.APP_CONFIG = {apiBaseUrl:"https://gcit-club-api.onrender.com/api",portalUrls:{student:"https://gcit-club-student.onrender.com/login",coordinator:"https://gcit-club-coordinator.onrender.com/",admin:"https://gcit-club-admin.onrender.com/"}};' > js/config.js
+    staticPublishPath: .
+
+databases:
+  - name: gcit-club-db
+    databaseName: club_management
+    user: club_admin
+    plan: free
+    region: singapore

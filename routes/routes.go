@@ -1,7 +1,11 @@
 package routes
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -167,6 +171,66 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 		http.SetCookie(w, &http.Cookie{Name: "club_auth", Value: "", Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, MaxAge: -1, Expires: time.Unix(0, 0)})
 		jsonOut(w, http.StatusOK, map[string]string{"message": "Logged out"})
 	}))).Methods("POST")
+	router.Handle("/api/auth/handoff", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uid, ok := utils.GetUserID(r.Context())
+		if !ok {
+			jsonOut(w, http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+			return
+		}
+		rawCode := make([]byte, 32)
+		if _, err := rand.Read(rawCode); err != nil {
+			jsonOut(w, http.StatusInternalServerError, map[string]string{"error": "Could not create sign-in handoff"})
+			return
+		}
+		code := base64.RawURLEncoding.EncodeToString(rawCode)
+		hash := sha256.Sum256([]byte(code))
+		_, _ = db.Exec(`DELETE FROM auth_handoffs WHERE expires_at <= NOW()`)
+		_, err := db.Exec(`INSERT INTO auth_handoffs(code_hash,user_id,token,expires_at) VALUES($1,$2,$3,NOW()+INTERVAL '1 minute')`, hex.EncodeToString(hash[:]), uid, middleware.TokenFromRequest(r))
+		if err != nil {
+			jsonOut(w, http.StatusInternalServerError, map[string]string{"error": "Could not create sign-in handoff"})
+			return
+		}
+		jsonOut(w, http.StatusCreated, map[string]string{"code": code})
+	}))).Methods("POST")
+	router.HandleFunc("/api/auth/handoff/exchange", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Code string `json:"code"`
+		}
+		if json.NewDecoder(r.Body).Decode(&request) != nil || request.Code == "" {
+			jsonOut(w, http.StatusBadRequest, map[string]string{"error": "A handoff code is required"})
+			return
+		}
+		hash := sha256.Sum256([]byte(request.Code))
+		tx, err := db.Begin()
+		if err != nil {
+			jsonOut(w, http.StatusInternalServerError, map[string]string{"error": "Could not complete sign-in"})
+			return
+		}
+		var uid int
+		var token string
+		err = tx.QueryRow(`DELETE FROM auth_handoffs WHERE code_hash=$1 AND expires_at>NOW() RETURNING user_id,token`, hex.EncodeToString(hash[:])).Scan(&uid, &token)
+		if err != nil {
+			_ = tx.Rollback()
+			jsonOut(w, http.StatusUnauthorized, map[string]string{"error": "Sign-in handoff has expired or was already used"})
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			jsonOut(w, http.StatusInternalServerError, map[string]string{"error": "Could not complete sign-in"})
+			return
+		}
+		var user struct {
+			UserID             int    `json:"user_id"`
+			FullName           string `json:"full_name"`
+			Email              string `json:"email"`
+			Role               string `json:"role"`
+			MustChangePassword bool   `json:"must_change_password"`
+		}
+		if err := db.QueryRow(`SELECT user_id,full_name,email,role,must_change_password FROM users WHERE user_id=$1 AND is_active=TRUE`, uid).Scan(&user.UserID, &user.FullName, &user.Email, &user.Role, &user.MustChangePassword); err != nil {
+			jsonOut(w, http.StatusUnauthorized, map[string]string{"error": "Account is unavailable"})
+			return
+		}
+		jsonOut(w, http.StatusOK, map[string]any{"token": token, "user": user})
+	}).Methods("POST")
 	admin := []string{"admin"}
 	student := []string{"student"}
 	coord := []string{"coordinator"}

@@ -13,7 +13,7 @@ import (
 type account struct{ name, email, password, role string }
 
 func main() {
-	if err := godotenv.Overload(".env"); err != nil {
+	if err := godotenv.Overload(".env"); err != nil && !os.IsNotExist(err) {
 		log.Fatal("Load .env: ", err)
 	}
 	db, err := config.ConnectDB()

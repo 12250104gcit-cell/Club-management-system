@@ -13,6 +13,22 @@ import (
 )
 
 func ConnectDB() (*sql.DB, error) {
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		db, err := sql.Open("pgx", databaseURL)
+		if err != nil {
+			return nil, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := db.PingContext(ctx); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("database connection failed: %w", err)
+		}
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(10)
+		db.SetConnMaxLifetime(5 * time.Minute)
+		return db, nil
+	}
 
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")

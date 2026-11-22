@@ -39,7 +39,8 @@ const Views = (() => {
         <p class="footer">GCIT Club Management App</p>
       </main>`,
     mount(root) {
-      const sharedLogin = `${location.protocol}//${location.hostname}:5173/login`;
+      const studentPortal = API.portalUrl("student").replace(/\/+$/, "");
+      const sharedLogin = studentPortal.endsWith("/login") ? studentPortal : `${studentPortal}/login`;
       location.replace(sharedLogin);
     },
   });

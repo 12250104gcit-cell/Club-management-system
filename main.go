@@ -18,8 +18,7 @@ func main() {
 
 	// Load environment variables
 	err := godotenv.Overload(".env")
-
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		log.Fatal("Error loading .env file:", err)
 	}
 
@@ -77,9 +76,15 @@ func main() {
 	}).Methods("GET")
 
 	// Start server
-	port := os.Getenv("SERVER_PORT")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = os.Getenv("SERVER_PORT")
+	}
+	if port == "" {
+		port = "4001"
+	}
 
 	fmt.Println("Server running on port", port)
 
-	log.Fatal(http.ListenAndServe(":"+port, cors(router)))
+	log.Fatal(http.ListenAndServe("0.0.0.0:"+port, cors(router)))
 }
