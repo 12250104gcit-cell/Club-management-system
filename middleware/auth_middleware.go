@@ -1,7 +1,9 @@
-
 package middleware
 
 import (
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
 	"net/http"
 	"os"
 	"strings"
@@ -12,26 +14,33 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var revocationDB *sql.DB
+
+func SetRevocationDB(db *sql.DB) { revocationDB = db }
+func TokenFromRequest(r *http.Request) string {
+	if c, err := r.Cookie("club_auth"); err == nil && c.Value != "" {
+		return c.Value
+	}
+	p := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+	if len(p) == 2 && p[0] == "Bearer" {
+		return strings.TrimSpace(p[1])
+	}
+	return ""
+}
+func TokenHash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		// Get the Authorization header
-		authHeader := r.Header.Get("Authorization")
-
-		if authHeader == "" {
-			http.Error(w, `{"error":"Authorization token required"}`, http.StatusUnauthorized)
+		// Prefer the shared HTTP-only session, falling back to the existing bearer token.
+		tokenString := TokenFromRequest(r)
+		if tokenString == "" {
+			http.Error(w, `{"error":"Authentication required"}`, http.StatusUnauthorized)
 			return
 		}
-
-		// Check Bearer token format
-		parts := strings.SplitN(authHeader, " ", 2)
-
-		if len(parts) != 2 || parts[0] != "Bearer" || strings.TrimSpace(parts[1]) == "" {
-			http.Error(w, `{"error":"Invalid authorization format"}`, http.StatusUnauthorized)
-			return
-		}
-
-		tokenString := strings.TrimSpace(parts[1])
 
 		// Get JWT secret
 		secret := os.Getenv("JWT_SECRET")
@@ -60,6 +69,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			http.Error(w, `{"error":"Invalid or expired token"}`, http.StatusUnauthorized)
 			return
 		}
+		if revocationDB != nil {
+			var revoked bool
+			if err := revocationDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM revoked_tokens WHERE token_hash=$1 AND expires_at>NOW())`, TokenHash(tokenString)).Scan(&revoked); err != nil || revoked {
+				http.Error(w, `{"error":"Invalid or expired token"}`, http.StatusUnauthorized)
+				return
+			}
+		}
 
 		claims, ok := token.Claims.(*controllers.Claims)
 
@@ -78,24 +94,24 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Check whether the user must change their default password
-		if claims.MustChangePassword && r.URL.Path != "/api/auth/change-password" {
+		if claims.MustChangePassword && r.URL.Path != "/api/auth/change-password" && r.URL.Path != "/api/auth/me" {
 
-    		w.Header().Set("Content-Type", "application/json")
-    		w.WriteHeader(http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
 
-    		w.Write([]byte(`{
+			w.Write([]byte(`{
         		"error": "You must change your password before accessing other features",
         		"code": "PASSWORD_CHANGE_REQUIRED"
     		}`))
 
-   			 return
+			return
 		}
 
 		// Store user information in request context
 		ctx := utils.WithUserContext(
-    		r.Context(),
-    		claims.UserID,
-    		claims.Role,
+			r.Context(),
+			claims.UserID,
+			claims.Role,
 		)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

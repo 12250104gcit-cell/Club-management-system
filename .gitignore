@@ -4,3 +4,12 @@
 
 *.exe
 cmd/seedtestusers/
+
+# Local build caches, generated output, and runtime logs
+.gocache/
+.vite/
+node_modules/
+dist/
+*.exe~
+*.log
+package-lock.json

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"club-management-system/config"
 	"club-management-system/routes"
@@ -22,8 +23,6 @@ func main() {
 		log.Fatal("Error loading .env file:", err)
 	}
 
-	fmt.Println("DB_HOST loaded:", os.Getenv("DB_HOST"))
-
 	// Connect to PostgreSQL
 	db, err := config.ConnectDB()
 
@@ -39,7 +38,35 @@ func main() {
 	router := mux.NewRouter()
 
 	// Register API routes
-	routes.RegisterRoutes(router, db)
+	if err := routes.RegisterRoutes(router, db); err != nil {
+		log.Fatal("Could not initialize Sprint 1 schema:", err)
+	}
+	allowedOrigins := strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+	cors := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			originAllowed := false
+			for _, allowedOrigin := range allowedOrigins {
+				if origin != "" && strings.TrimSpace(allowedOrigin) == origin {
+					originAllowed = true
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Vary", "Origin")
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				}
+			}
+			if r.Method == http.MethodOptions {
+				if origin != "" && !originAllowed {
+					http.Error(w, "origin not allowed", http.StatusForbidden)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 
 	// Health check API
 	router.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
@@ -54,5 +81,5 @@ func main() {
 
 	fmt.Println("Server running on port", port)
 
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	log.Fatal(http.ListenAndServe(":"+port, cors(router)))
 }
