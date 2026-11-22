@@ -13,7 +13,7 @@ import PollManagement from "./pages/PollManagement";
 import CreatePoll from "./pages/CreatePoll";
 import PollDetails from "./pages/PollDetails";
 import CoordinatorProfile from "./pages/CoordinatorProfile";
-import { api, portalUrl } from "./api";
+import { api, portalUrl, redirectForRole } from "./api";
 import { useEffect } from "react";
 
 // Combined CSS for all pages
@@ -22,7 +22,7 @@ import "./pages/styles.css";
 function App() {
   const [currentPage, setCurrentPage] = useState("checking");
   const [currentUser, setCurrentUser] = useState(null);
-  useEffect(() => { api("/auth/me").then(user => { if(user.role === "coordinator") { setCurrentUser(user); setCurrentPage("home"); } else window.location.replace(portalUrl(user.role)); }).catch(() => window.location.replace(portalUrl("student"))); }, []);
+  useEffect(() => { api("/auth/me").then(user => { if(user.role === "coordinator") { setCurrentUser(user); setCurrentPage("home"); } else redirectForRole(user.role); }).catch(() => window.location.replace(portalUrl("student"))); }, []);
 
   // Store selected announcement and poll
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
