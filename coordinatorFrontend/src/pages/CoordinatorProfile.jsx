@@ -64,6 +64,7 @@ function CoordinatorProfile({ currentUser, onProfileUpdated }) {
     newPassword: "",
     confirm: "",
   });
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [notificationsEnabled, setNotificationsEnabled] =
     useState(true);
@@ -113,8 +114,9 @@ function CoordinatorProfile({ currentUser, onProfileUpdated }) {
     finally { setSavingProfile(false); }
   };
 
-  const savePassword = (event) => {
+  const savePassword = async (event) => {
     event.preventDefault();
+    setMessage("");
 
     if (passwords.newPassword.length < 8) {
       setMessage("New password must contain at least 8 characters.");
@@ -126,16 +128,19 @@ function CoordinatorProfile({ currentUser, onProfileUpdated }) {
       return;
     }
 
-    // No real password change until connected to the backend
-    setPasswords({
-      current: "",
-      newPassword: "",
-      confirm: "",
-    });
-
-    setMessage(
-      "Form validated. Backend connection is required to change the password."
-    );
+    setSavingPassword(true);
+    try {
+      await api("/auth/change-password", {
+        method: "PUT",
+        body: JSON.stringify({ current_password: passwords.current, new_password: passwords.newPassword }),
+      });
+      setPasswords({ current: "", newPassword: "", confirm: "" });
+      setMessage("Password changed successfully.");
+    } catch (error) {
+      setMessage(error.message || "Could not change the password.");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const titles = {
@@ -418,9 +423,9 @@ function CoordinatorProfile({ currentUser, onProfileUpdated }) {
             required
           />
 
-          <button type="submit">
+          <button type="submit" disabled={savingPassword}>
             <Save size={16} />
-            Change Password
+            {savingPassword ? "Saving…" : "Change Password"}
           </button>
 
           {message && <p role="status">{message}</p>}

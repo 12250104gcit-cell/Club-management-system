@@ -2357,6 +2357,138 @@
   }
 }
 
+/* Keep dashboard and announcement cards readable at every viewport width. */
+.coordinator-app .dashboard-activities,
+.coordinator-app .announcement-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.coordinator-app .activity-card {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 16px;
+}
+
+.coordinator-app .activity-icon {
+  width: 32px;
+  flex: none;
+}
+
+.coordinator-app .activity-information {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.coordinator-app .activity-meta {
+  align-self: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.coordinator-app .announcement-card {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+}
+
+.coordinator-app .announcement-icon {
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+.coordinator-app .announcement-card-heading {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.coordinator-app .announcement-card-heading h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.coordinator-app .announcement-card-controls {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.coordinator-app .announcement-card-content > p {
+  overflow-wrap: anywhere;
+}
+
+.coordinator-app .announcement-card-footer {
+  gap: 8px 16px;
+}
+
+/* Size quick-access columns to the page itself, not the desktop viewport. */
+.coordinator-app .dashboard-page .dashboard-quick-access {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+.coordinator-app .dashboard-page .dashboard-quick-access button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 82px;
+  text-align: left;
+}
+
+.coordinator-app .dashboard-page .dashboard-quick-access button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .coordinator-app .activity-card {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 8px 10px;
+    padding: 12px;
+  }
+
+  .coordinator-app .activity-icon {
+    width: 28px;
+  }
+
+  .coordinator-app .activity-meta {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .coordinator-app .announcement-card {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .coordinator-app .announcement-card-controls {
+    margin-left: 0;
+  }
+}
+
 /* ===================================================
    RESPONSIVE DESIGN FOR ALL COORDINATOR PAGES
    Mobile, Tablet and Desktop
