@@ -1,4 +1,3 @@
-
 package middleware
 
 import (
@@ -80,22 +79,22 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// Check whether the user must change their default password
 		if claims.MustChangePassword && r.URL.Path != "/api/auth/change-password" {
 
-    		w.Header().Set("Content-Type", "application/json")
-    		w.WriteHeader(http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
 
-    		w.Write([]byte(`{
+			w.Write([]byte(`{
         		"error": "You must change your password before accessing other features",
         		"code": "PASSWORD_CHANGE_REQUIRED"
     		}`))
 
-   			 return
+			return
 		}
 
 		// Store user information in request context
 		ctx := utils.WithUserContext(
-    		r.Context(),
-    		claims.UserID,
-    		claims.Role,
+			r.Context(),
+			claims.UserID,
+			claims.Role,
 		)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

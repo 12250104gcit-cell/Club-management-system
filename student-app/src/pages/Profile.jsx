@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, CircleUserRound, LogOut, Settings } from "lucide-react";
 import { STUDENT } from "../data/appData";
 import { clearCurrentUser, getCurrentUser } from "../data/storage";
-import Avatar from "../components/Avatar";
 import Modal from "../components/Modal";
 import { api } from "../data/api";
 
@@ -23,7 +22,6 @@ export default function Profile() {
       <h2 className="page-title">Profile</h2>
 
       <div className="profile-summary">
-        <Avatar size={94} />
         <h3>{currentUser?.name || STUDENT.name}</h3>
         <p>{currentUser?.email || STUDENT.studentId}</p>
       </div>

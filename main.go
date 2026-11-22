@@ -16,10 +16,9 @@ import (
 func main() {
 
 	// Load environment variables
-	err := godotenv.Overload(".env")
-
+	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Error loading .env file:", err)
+		log.Printf("Warning: .env file could not be loaded: %v", err)
 	}
 
 	fmt.Println("DB_HOST loaded:", os.Getenv("DB_HOST"))
@@ -51,6 +50,9 @@ func main() {
 
 	// Start server
 	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080"
+	}
 
 	fmt.Println("Server running on port", port)
 

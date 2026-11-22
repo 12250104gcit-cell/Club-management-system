@@ -46,8 +46,6 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   const access = membership.path === location.pathname ? membership : { path: location.pathname, status: "loading", approved: null, error: "" };
-  const visibleTabs = access.status === "approved" ? tabs : tabs.filter((tab) => !["/announcements", "/polls"].includes(tab.to));
-
   const logout = async () => {
     await api("/auth/logout", { method: "POST" }).catch(() => {});
     clearCurrentUser();
@@ -74,7 +72,7 @@ export default function AppLayout() {
         </main>
 
         <nav className="bottom-nav" aria-label="Main">
-          {visibleTabs.map(({ to, label, icon: Icon, end }) => (
+          {tabs.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

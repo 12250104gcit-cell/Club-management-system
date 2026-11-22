@@ -4,7 +4,6 @@ import { ChevronLeft, Pencil } from "lucide-react";
 import { clubs } from "../data/appData";
 import { saveCurrentProfile, useApplications } from "../data/storage";
 import { api } from "../data/api";
-import Avatar from "../components/Avatar";
 
 const EMPTY_PROFILE = {
   full_name: "", email: "", phone: "", date_of_birth: "", gender: "",
@@ -63,7 +62,6 @@ export default function MyProfile() {
       </div>
       {loading ? <p role="status">Loading profile…</p> : error && !profile.full_name ? <p className="auth-error" role="alert">{error}</p> : <>
         <div className="me-top">
-          <Avatar size={80} />
           <div><h3>{profile.full_name || "Account"}</h3><p>Account ID: {profile.user_id}</p>{club && <p>{club.name} Member</p>}</div>
         </div>
         {error && <p className="auth-error" role="alert">{error}</p>}

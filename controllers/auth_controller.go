@@ -18,16 +18,101 @@ type AuthController struct {
 }
 
 type Claims struct {
-    UserID             int    `json:"user_id"`
-    Role               string `json:"role"`
-    MustChangePassword bool   `json:"must_change_password"`
-    jwt.RegisteredClaims
+	UserID             int    `json:"user_id"`
+	Role               string `json:"role"`
+	MustChangePassword bool   `json:"must_change_password"`
+	jwt.RegisteredClaims
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
+}
+
+func (ac *AuthController) Register(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		FullName string `json:"full_name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	request.FullName = strings.TrimSpace(request.FullName)
+	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
+
+	if request.FullName == "" || request.Email == "" || request.Password == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Full name, email, and password are required",
+		})
+		return
+	}
+
+	if len(request.Password) < 8 {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Password must contain at least 8 characters",
+		})
+		return
+	}
+
+	var exists bool
+	err := ac.DB.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = $1)`,
+		request.Email,
+	).Scan(&exists)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Database error",
+		})
+		return
+	}
+
+	if exists {
+		respondJSON(w, http.StatusConflict, map[string]string{
+			"error": "An account with this email already exists",
+		})
+		return
+	}
+
+	passwordHash, err := utils.HashPassword(request.Password)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Could not secure the password",
+		})
+		return
+	}
+
+	var userID int
+	err = ac.DB.QueryRow(`
+		INSERT INTO users
+			(full_name, email, password_hash, role, is_active, must_change_password)
+		VALUES
+			($1, $2, $3, 'student', TRUE, FALSE)
+		RETURNING user_id
+	`, request.FullName, request.Email, passwordHash).Scan(&userID)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Could not create account",
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"message": "Account created successfully",
+		"user": map[string]interface{}{
+			"user_id":              userID,
+			"full_name":            request.FullName,
+			"email":                request.Email,
+			"role":                 "student",
+			"must_change_password": false,
+		},
+	})
 }
 
 func (ac *AuthController) Login(w http.ResponseWriter, r *http.Request) {
@@ -111,9 +196,9 @@ func (ac *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := Claims{
-    	UserID:             user.UserID,
-    	Role:               user.Role,
-    	MustChangePassword: user.MustChangePassword,
+		UserID:             user.UserID,
+		Role:               user.Role,
+		MustChangePassword: user.MustChangePassword,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.Email,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
@@ -146,96 +231,96 @@ func (ac *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 func (ac *AuthController) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
-    // Get the logged-in user's ID from the request context
-    userID, ok := utils.GetUserID(r.Context())
+	// Get the logged-in user's ID from the request context
+	userID, ok := utils.GetUserID(r.Context())
 
-    if !ok {
-        respondJSON(w, http.StatusUnauthorized, map[string]string{
-            "error": "User not authenticated",
-        })
-        return
-    }
+	if !ok {
+		respondJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "User not authenticated",
+		})
+		return
+	}
 
-    // Receive the current and new passwords
-    var request struct {
-        CurrentPassword string `json:"current_password"`
-        NewPassword     string `json:"new_password"`
-    }
+	// Receive the current and new passwords
+	var request struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
 
-    err := json.NewDecoder(r.Body).Decode(&request)
+	err := json.NewDecoder(r.Body).Decode(&request)
 
-    if err != nil {
-        respondJSON(w, http.StatusBadRequest, map[string]string{
-            "error": "Invalid request body",
-        })
-        return
-    }
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+		return
+	}
 
-    if request.CurrentPassword == "" || request.NewPassword == "" {
-        respondJSON(w, http.StatusBadRequest, map[string]string{
-            "error": "Both passwords are required",
-        })
-        return
-    }
+	if request.CurrentPassword == "" || request.NewPassword == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Both passwords are required",
+		})
+		return
+	}
 
-    if len(request.NewPassword) < 8 {
-        respondJSON(w, http.StatusBadRequest, map[string]string{
-            "error": "New password must contain at least 8 characters",
-        })
-        return
-    }
+	if len(request.NewPassword) < 8 {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "New password must contain at least 8 characters",
+		})
+		return
+	}
 
-    // Get the user's current password hash and account status
-    var currentHash string
-    var isActive bool
+	// Get the user's current password hash and account status
+	var currentHash string
+	var isActive bool
 
-    err = ac.DB.QueryRow(`
+	err = ac.DB.QueryRow(`
         SELECT password_hash, is_active
         FROM users
         WHERE user_id = $1
     `, userID).Scan(&currentHash, &isActive)
 
-    if err == sql.ErrNoRows {
-        respondJSON(w, http.StatusNotFound, map[string]string{
-            "error": "User not found",
-        })
-        return
-    }
+	if err == sql.ErrNoRows {
+		respondJSON(w, http.StatusNotFound, map[string]string{
+			"error": "User not found",
+		})
+		return
+	}
 
-    if err != nil {
-        respondJSON(w, http.StatusInternalServerError, map[string]string{
-            "error": "Database error",
-        })
-        return
-    }
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Database error",
+		})
+		return
+	}
 
-    if !isActive {
-        respondJSON(w, http.StatusForbidden, map[string]string{
-            "error": "Account is inactive",
-        })
-        return
-    }
+	if !isActive {
+		respondJSON(w, http.StatusForbidden, map[string]string{
+			"error": "Account is inactive",
+		})
+		return
+	}
 
-    // Verify the current password
-    if !utils.CheckPassword(request.CurrentPassword, currentHash) {
-        respondJSON(w, http.StatusUnauthorized, map[string]string{
-            "error": "Current password is incorrect",
-        })
-        return
-    }
+	// Verify the current password
+	if !utils.CheckPassword(request.CurrentPassword, currentHash) {
+		respondJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "Current password is incorrect",
+		})
+		return
+	}
 
-    // Hash the new password
-    newHash, err := utils.HashPassword(request.NewPassword)
+	// Hash the new password
+	newHash, err := utils.HashPassword(request.NewPassword)
 
-    if err != nil {
-        respondJSON(w, http.StatusInternalServerError, map[string]string{
-            "error": "Could not secure the new password",
-        })
-        return
-    }
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Could not secure the new password",
+		})
+		return
+	}
 
-    // Update the password in the database
-    _, err = ac.DB.Exec(`
+	// Update the password in the database
+	_, err = ac.DB.Exec(`
         UPDATE users
         SET password_hash = $1,
             must_change_password = FALSE,
@@ -243,14 +328,14 @@ func (ac *AuthController) ChangePassword(w http.ResponseWriter, r *http.Request)
         WHERE user_id = $2
     `, newHash, userID)
 
-    if err != nil {
-        respondJSON(w, http.StatusInternalServerError, map[string]string{
-            "error": "Could not update password",
-        })
-        return
-    }
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Could not update password",
+		})
+		return
+	}
 
-    respondJSON(w, http.StatusOK, map[string]string{
-        "message": "Password changed successfully",
-    })
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message": "Password changed successfully",
+	})
 }

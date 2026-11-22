@@ -8,13 +8,14 @@ export default function Clubs() {
   const [clubs, setClubs] = useState([]);
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState("");
-  useEffect(() => { Promise.all([api("/clubs"), api("/student/requests")]).then(([c, r]) => { setClubs(c); setRequests(r); }).catch(e => setError(e.message)); }, []);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { Promise.all([api("/clubs"), api("/student/requests")]).then(([c, r]) => { setClubs(c); setRequests(r); }).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
   const myApplication = requests.find(r => r.status === "approved" || r.status === "pending");
   const myClub = myApplication ? clubs.find(c => c.id === myApplication.club_id) : null;
 
   return (
     <>
-      {myClub ? (
+      {!loading && myClub ? (
         <>
           <h2 className="section-heading light">My Club</h2>
 
@@ -46,13 +47,14 @@ export default function Clubs() {
 
           <h2 className="section-heading light">Other Clubs</h2>
         </>
-      ) : (
+      ) : !loading ? (
         <h2 className="find-heading">FIND A CLUB THAT INTEREST YOU</h2>
-      )}
+      ) : null}
 
       {error && <p role="alert">{error}</p>}
-      {myApplication && <p>Leave your current club before joining another.</p>}
-      <div className="club-list">
+      {loading && <p className="center-note full" role="status">Loading clubs…</p>}
+      {!loading && myApplication && <p>Leave your current club before joining another.</p>}
+      {!loading && <div className="club-list">
         {clubs.map((club) => {
           const status = requests.find((request) => request.club_id === club.id)?.status?.toLowerCase();
           return (
@@ -66,7 +68,7 @@ export default function Clubs() {
             </Link>
           );
         })}
-      </div>
+      </div>}
     </>
   );
 }
