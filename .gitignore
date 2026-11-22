@@ -4,3 +4,8 @@
 
 *.exe
 cmd/seedtestusers/
+
+node_modules/
+dist/
+.vite/
+package-lock.json
