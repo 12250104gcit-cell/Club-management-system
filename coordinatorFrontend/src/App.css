@@ -1,0 +1,344 @@
+
+/* ==========================================
+   GCIT CLUB MANAGEMENT SYSTEM
+   APP.CSS - GLOBAL LAYOUT AND LOGIN
+   ========================================== */
+
+/* Global sizing */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0;
+}
+
+/* Main application */
+
+.coordinator-app {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: #f7f8fa;
+  overflow-x: clip;
+}
+
+/* Prevent content overflow */
+
+.coordinator-app img {
+  max-width: 100%;
+  height: auto;
+}
+
+.coordinator-app input,
+.coordinator-app textarea,
+.coordinator-app select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ==========================================
+   LOGIN PAGE
+   ========================================== */
+
+.login-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: #e5e5e5;
+}
+
+/* Login Card */
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  min-height: 600px;
+  background: #f7f8fa;
+  padding: 55px 28px 25px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Login Heading */
+
+.login-card h1 {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+}
+
+/* Subtitle */
+
+.subtitle {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  margin: 10px 0 38px;
+  line-height: 1.5;
+}
+
+/* Login Form */
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Input Labels */
+
+.login-card label {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 7px;
+  color: #444;
+}
+
+/* Email and Password Fields */
+
+.login-card input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 13px 16px;
+  border: 1px solid #dedede;
+  border-radius: 24px;
+  margin-bottom: 20px;
+  background: transparent;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.login-card input:focus {
+  border-color: #20b455;
+}
+
+/* Login Button */
+
+.login-button {
+  width: 100%;
+  margin-top: 12px;
+  background: #20b455;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.login-button:hover {
+  background: #179547;
+}
+
+/* Divider */
+
+.divider {
+  text-align: center;
+  margin: 24px 0;
+  font-size: 12px;
+  color: #777;
+}
+
+/* Google Button */
+
+.google-button {
+  width: 100%;
+  padding: 13px;
+  border-radius: 25px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  font-size: 13px;
+  cursor: not-allowed;
+}
+
+/* Sign Up */
+
+.signup {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 12px;
+}
+
+.signup span {
+  color: #20b455;
+}
+
+/* Footer */
+
+.footer {
+  text-align: center;
+  font-size: 11px;
+  color: #555;
+  margin-top: auto;
+  padding-top: 30px;
+}
+
+/* ==========================================
+   LOGIN LOGO AND BRAND
+   ========================================== */
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.login-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.login-brand h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+/* ==========================================
+   SMALL MOBILE: UP TO 360px
+   ========================================== */
+
+@media (max-width: 360px) {
+  .login-container {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .login-card {
+    max-width: 100%;
+    min-height: 100dvh;
+    padding: 45px 20px 25px;
+    border-radius: 0;
+  }
+
+  .login-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .login-brand h1 {
+    font-size: 23px;
+  }
+
+  .subtitle {
+    margin-bottom: 30px;
+  }
+}
+
+/* ==========================================
+   MOBILE: 361px TO 480px
+   ========================================== */
+
+@media (min-width: 361px) and (max-width: 480px) {
+  .login-container {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .login-card {
+    max-width: 100%;
+    min-height: 100dvh;
+    padding: 55px 25px 25px;
+    border-radius: 0;
+  }
+
+  .login-brand h1 {
+    font-size: 26px;
+  }
+}
+
+/* ==========================================
+   TABLET: 481px TO 1023px
+   ========================================== */
+
+@media (min-width: 481px) and (max-width: 1023px) {
+  .login-container {
+    padding: 30px;
+  }
+
+  .login-card {
+    max-width: 480px;
+    min-height: 620px;
+    padding: 60px 40px 30px;
+    border-radius: 14px;
+  }
+
+  .login-brand h1 {
+    font-size: 28px;
+  }
+
+  .login-card input {
+    padding: 14px 17px;
+  }
+}
+
+/* ==========================================
+   LAPTOP AND DESKTOP: 1024px+
+   ========================================== */
+
+@media (min-width: 1024px) {
+  .login-container {
+    padding: 40px;
+  }
+
+  .login-card {
+    max-width: 470px;
+    min-height: 620px;
+    padding: 65px 45px 35px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  .login-brand h1 {
+    font-size: 30px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .login-card label {
+    font-size: 13px;
+  }
+
+  .login-card input {
+    font-size: 14px;
+  }
+}

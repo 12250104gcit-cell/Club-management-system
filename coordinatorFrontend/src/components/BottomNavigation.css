@@ -1,0 +1,38 @@
+
+.bottom-navigation {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  max-width: 390px;
+  background: white;
+  border-top: 1px solid #e5e5e5;
+  padding: 10px 4px;
+  margin: 0 auto;
+}
+
+.navigation-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: #606060;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 4px 0;
+}
+
+.navigation-item svg {
+  width: 22px;
+  height: 22px;
+}
+
+.navigation-active {
+  color: #ff741d;
+  font-weight: 600;
+}

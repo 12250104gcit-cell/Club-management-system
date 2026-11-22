@@ -1,0 +1,34 @@
+
+.coordinator-app {
+  width: 100%;
+  max-width: 390px;
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #f7f8fa;
+}
+
+.coordinator-app > main {
+  flex: 1;
+}
+
+.coordinator-app > .bottom-navigation {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}

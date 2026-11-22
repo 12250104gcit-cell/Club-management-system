@@ -1,0 +1,43 @@
+
+.gcit-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: #ffffff;
+  border-bottom: 1px solid #dddddd;
+}
+
+.gcit-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gcit-header-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.gcit-header-brand span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.gcit-logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background: transparent;
+  border: none;
+  color: #20b455;
+  cursor: pointer;
+}
+
+.gcit-logout-button:hover {
+  color: #178d42;
+}
