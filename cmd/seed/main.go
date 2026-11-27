@@ -75,6 +75,14 @@ func main() {
 	if _, err = db.Exec(`INSERT INTO memberships(student_id,club_id,status) SELECT u.user_id,c.club_id,'approved' FROM users u CROSS JOIN clubs c WHERE u.email='pema.student@gcit.bt' AND c.name='Coding Club' AND NOT EXISTS(SELECT 1 FROM memberships m WHERE m.student_id=u.user_id AND m.status IN ('pending','approved'))`); err != nil {
 		log.Fatal(err)
 	}
+	_, err = db.Exec(`INSERT INTO memberships(student_id,club_id,status) SELECT u.user_id,c.club_id,'leave_requested' FROM users u CROSS JOIN clubs c WHERE u.email='tshering.student@gcit.bt' AND c.name='Coding Club' AND NOT EXISTS(SELECT 1 FROM memberships m WHERE m.student_id=u.user_id AND m.status IN ('pending','approved','leave_requested'))`)
+	if err != nil {
+		log.Fatal("Seed leave request: ", err)
+	}
+	_, err = db.Exec(`INSERT INTO announcements(club_id,created_by,title,body) SELECT c.club_id,u.user_id,s.title,s.body FROM clubs c CROSS JOIN users u CROSS JOIN (VALUES ('Welcome to Coding Club','Watch this space for club updates.'),('Next meeting','We will share the next meeting details soon.'),('Project signups','Contact your coordinator to join a project team.')) s(title,body) WHERE c.name='Coding Club' AND u.email='admin@gcit.bt' AND NOT EXISTS(SELECT 1 FROM announcements a WHERE a.club_id=c.club_id AND a.title=s.title)`)
+	if err != nil {
+		log.Fatal("Seed announcements: ", err)
+	}
 	_, err = db.Exec(`INSERT INTO polls(club_id,created_by,question,description,closes_at)
 		SELECT c.club_id,a.user_id,'Which club activity should we plan next?','Choose an activity for the next club meet-up.',NOW()+INTERVAL '30 days'
 		FROM clubs c CROSS JOIN users a WHERE c.name='Coding Club' AND a.email='admin@gcit.bt'

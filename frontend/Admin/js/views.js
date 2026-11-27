@@ -50,7 +50,7 @@ const Views = (() => {
     const s = Store.stats();
     const hour = new Date().getHours();
     const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    const recent = Store.clubs().slice(0, 4);
+    const clubs = Store.clubs();
     return {
       nav: "home",
       html: `
@@ -62,9 +62,9 @@ const Views = (() => {
             <div class="stat"><b>${s.active}</b><span>Active Clubs</span></div>
             <div class="stat"><b>${s.coordinators}</b><span>Coordinators</span></div>
           </div>
-          <div class="section-head"><span>Recent Clubs</span><span>Status</span></div>
+          <div class="section-head"><span>Clubs</span><span>Status</span></div>
           <div>
-            ${recent.length ? recent.map((c) => `
+            ${clubs.length ? clubs.map((c) => `
               <a class="recent-row" href="#/clubs/${c.id}">
                 ${clubAvatar(c, "sq lg")}
                 <div class="info"><div class="name">${esc(c.name)}</div><div class="sub">${esc(Store.coordinatorName(c.coordinatorId))}</div></div>
@@ -170,6 +170,7 @@ const Views = (() => {
           <form id="club-form" novalidate>
             ${UI.field({ id: "name", label: "Club Name", required: true, placeholder: "Enter club name", value: club?.name })}
             ${UI.selectField({ id: "category", label: "Category", required: true, placeholder: "Select category", value: club?.category, options: CATEGORIES.map((c) => ({ value: c, label: c })) })}
+            ${UI.selectField({ id: "status", label: "Status", required: true, placeholder: "Select status", value: (club?.status || "Active").toLowerCase(), options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] })}
             ${UI.field({ id: "description", label: "Description", required: true, placeholder: "Enter description", value: club?.description, textarea: true })}
             ${UI.uploadBox({ label: "Club Logo", hint: editing ? "Change Club Logo" : "Tap to upload image", preview: club?.logo })}
             ${UI.selectField({ id: "coordinatorId", label: "Coordinator", required: false, placeholder: "Select coordinator", value: club?.coordinatorId || "", options: coordOptions })}
@@ -187,6 +188,7 @@ const Views = (() => {
           const { ok, values } = UI.validate(root, {
             name: { required: true },
             category: { required: true },
+            status: { required: true },
             description: { required: true },
           });
           if (!ok) return;
@@ -252,15 +254,17 @@ const Views = (() => {
   });
 
   /* ---------------------------------------------------- Coordinator create */
-  const clubOptions = () => Store.clubs().map((c) => ({ value: c.id, label: c.name }));
-  const refreshClubSelect = (root, selected = "") => {
+  const clubOptions = (coordinatorId = null) => Store.clubs()
+    .filter((club) => !club.coordinatorId || String(club.coordinatorId) === String(coordinatorId))
+    .map((c) => ({ value: c.id, label: c.name }));
+  const refreshClubSelect = (root, selected = "", coordinatorId = null) => {
     const select = root.querySelector("#clubId");
     if (!select) return;
     const current = selected || select.value;
     select.disabled = true;
     Store.refreshClubs().then(() => {
       if (!root.contains(select)) return;
-      const options = clubOptions();
+      const options = clubOptions(coordinatorId);
       select.innerHTML = `<option value="" disabled>Select Club</option>${options.map((option) => `<option value="${esc(option.value)}">${esc(option.label)}</option>`).join("")}`;
       select.value = options.some((option) => String(option.value) === String(current)) ? current : "";
       select.disabled = false;
@@ -356,7 +360,7 @@ const Views = (() => {
           <form id="coord-form" novalidate>
             ${UI.field({ id: "name", label: "Full Name", required: true, value: c.name })}
             ${UI.field({ id: "email", label: "Email", required: true, type: "email", value: c.email, error: "Enter a valid email address" })}
-            ${UI.selectField({ id: "clubId", label: "Assign Club", required: true, value: c.clubId || "", placeholder: "Select Club", options: clubOptions() })}
+            ${UI.selectField({ id: "clubId", label: "Assign Club", required: true, value: c.clubId || "", placeholder: "Select Club", options: clubOptions(c.id) })}
             <div class="field">
               <span class="label">Account Status</span>
               <div class="radio-row">
@@ -371,7 +375,7 @@ const Views = (() => {
           </form>
         </div>`,
       mount(root) {
-        refreshClubSelect(root, c.clubId || "");
+        refreshClubSelect(root, c.clubId || "", c.id);
         UI.clearInvalidOnInput(root);
         root.querySelector("#coord-form").addEventListener("submit", async (e) => {
           e.preventDefault();

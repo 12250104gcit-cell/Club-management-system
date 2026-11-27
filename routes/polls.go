@@ -217,7 +217,7 @@ func registerPollRoutes(router *mux.Router, db *sql.DB, protect func([]string, h
 	router.Handle("/api/student/polls", protect([]string{"student"}, func(w http.ResponseWriter, r *http.Request) {
 		uid, _ := utils.GetUserID(r.Context())
 		var cid int
-		if db.QueryRow("SELECT club_id FROM memberships WHERE student_id=$1 AND status='approved'", uid).Scan(&cid) != nil {
+		if db.QueryRow("SELECT club_id FROM memberships WHERE student_id=$1 AND status IN ('approved','leave_requested')", uid).Scan(&cid) != nil {
 			out(w, 403, map[string]string{"error": "An approved club membership is required"})
 			return
 		}
@@ -246,7 +246,7 @@ func registerPollRoutes(router *mux.Router, db *sql.DB, protect func([]string, h
 			return
 		}
 		var approved bool
-		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM memberships WHERE student_id=$1 AND club_id=$2 AND status='approved')", uid, cid).Scan(&approved)
+		_ = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM memberships WHERE student_id=$1 AND club_id=$2 AND status IN ('approved','leave_requested'))", uid, cid).Scan(&approved)
 		if !approved {
 			out(w, 403, map[string]string{"error": "An approved member of this poll's club is required"})
 			return

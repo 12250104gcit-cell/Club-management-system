@@ -235,7 +235,7 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 	student := []string{"student"}
 	coord := []string{"coordinator"}
 	router.Handle("/api/clubs", protect([]string{"admin", "student"}, func(w http.ResponseWriter, r *http.Request) {
-		rows, e := db.Query(`SELECT c.club_id,c.name,c.description,c.category,c.coordinator_id,COALESCE(u.full_name,''), (SELECT COUNT(*) FROM memberships m WHERE m.club_id=c.club_id AND m.status='approved') FROM clubs c LEFT JOIN users u ON u.user_id=c.coordinator_id ORDER BY c.name`)
+		rows, e := db.Query(`SELECT c.club_id,c.name,c.description,c.category,c.status,c.coordinator_id,COALESCE(u.full_name,''), (SELECT COUNT(*) FROM memberships m WHERE m.club_id=c.club_id AND m.status IN ('approved','leave_requested')),c.tagline,c.cover_image,c.show_category,c.show_coordinator,c.show_member_count,c.show_about FROM clubs c LEFT JOIN users u ON u.user_id=c.coordinator_id ORDER BY c.name`)
 		if e != nil {
 			jsonOut(w, 500, map[string]string{"error": "Database error"})
 			return
@@ -244,11 +244,16 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 		out := []any{}
 		for rows.Next() {
 			var id int
-			var name, desc, category, coName string
+			var name, desc, category, status, coName, tagline, coverImage string
 			var coID sql.NullInt64
 			var n int
-			if rows.Scan(&id, &name, &desc, &category, &coID, &coName, &n) == nil {
-				out = append(out, map[string]any{"id": id, "name": name, "description": desc, "category": category, "coordinator_id": coID, "coordinator_name": coName, "members": n})
+			var showCategory, showCoordinator, showMembers, showAbout bool
+			if rows.Scan(&id, &name, &desc, &category, &status, &coID, &coName, &n, &tagline, &coverImage, &showCategory, &showCoordinator, &showMembers, &showAbout) == nil {
+				var coordinatorID any
+				if coID.Valid {
+					coordinatorID = coID.Int64
+				}
+				out = append(out, map[string]any{"id": id, "name": name, "description": desc, "category": category, "status": status, "coordinator_id": coordinatorID, "coordinator_name": coName, "members": n, "tagline": tagline, "cover_image": coverImage, "show_category": showCategory, "show_coordinator": showCoordinator, "show_member_count": showMembers, "show_about": showAbout})
 			}
 		}
 		jsonOut(w, 200, out)
@@ -258,14 +263,23 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 			Name          string `json:"name"`
 			Description   string `json:"description"`
 			Category      string `json:"category"`
+			Status        string `json:"status"`
 			CoordinatorID int    `json:"coordinator_id"`
 		}
 		if json.NewDecoder(r.Body).Decode(&x) != nil || strings.TrimSpace(x.Name) == "" {
 			jsonOut(w, 422, map[string]string{"error": "Club name is required"})
 			return
 		}
+		x.Status = strings.ToLower(strings.TrimSpace(x.Status))
+		if x.Status == "" {
+			x.Status = "active"
+		}
+		if x.Status != "active" && x.Status != "inactive" {
+			jsonOut(w, 422, map[string]string{"error": "Status must be active or inactive"})
+			return
+		}
 		var id int
-		e := db.QueryRow(`INSERT INTO clubs(name,description,category) VALUES($1,$2,$3) RETURNING club_id`, strings.TrimSpace(x.Name), strings.TrimSpace(x.Description), strings.TrimSpace(x.Category)).Scan(&id)
+		e := db.QueryRow(`INSERT INTO clubs(name,description,category,status) VALUES($1,$2,$3,$4) RETURNING club_id`, strings.TrimSpace(x.Name), strings.TrimSpace(x.Description), strings.TrimSpace(x.Category), x.Status).Scan(&id)
 		if e != nil {
 			jsonOut(w, 409, map[string]string{"error": "Club name already exists"})
 			return
@@ -287,10 +301,31 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 	router.Handle("/api/clubs/{id}", protect(admin, func(w http.ResponseWriter, r *http.Request) {
 		id, _ := strconv.Atoi(mux.Vars(r)["id"])
 		if r.Method == http.MethodDelete {
-			res, e := db.Exec(`DELETE FROM clubs WHERE club_id=$1`, id)
-			n, _ := res.RowsAffected()
-			if e != nil || n == 0 {
+			tx, e := db.Begin()
+			if e != nil {
+				jsonOut(w, 500, map[string]string{"error": "Could not start club deletion"})
+				return
+			}
+			defer tx.Rollback()
+			var exists bool
+			if tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM clubs WHERE club_id=$1)`, id).Scan(&exists) != nil || !exists {
 				jsonOut(w, 404, map[string]string{"error": "Club not found"})
+				return
+			}
+			if _, e = tx.Exec(`UPDATE memberships SET status=CASE WHEN status='pending' THEN 'rejected' ELSE 'removed' END,decided_at=NOW() WHERE club_id=$1 AND status IN ('pending','approved','leave_requested')`, id); e != nil {
+				jsonOut(w, 500, map[string]string{"error": "Could not close club memberships"})
+				return
+			}
+			if _, e = tx.Exec(`UPDATE clubs SET coordinator_id=NULL WHERE club_id=$1`, id); e != nil {
+				jsonOut(w, 500, map[string]string{"error": "Could not unassign coordinator"})
+				return
+			}
+			if _, e = tx.Exec(`DELETE FROM clubs WHERE club_id=$1`, id); e != nil {
+				jsonOut(w, 500, map[string]string{"error": "Could not delete club"})
+				return
+			}
+			if tx.Commit() != nil {
+				jsonOut(w, 500, map[string]string{"error": "Could not delete club"})
 				return
 			}
 			jsonOut(w, 200, map[string]string{"message": "Club deleted"})
@@ -300,14 +335,20 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 			Name          string `json:"name"`
 			Description   string `json:"description"`
 			Category      string `json:"category"`
+			Status        string `json:"status"`
 			CoordinatorID int    `json:"coordinator_id"`
 		}
 		if json.NewDecoder(r.Body).Decode(&x) != nil || strings.TrimSpace(x.Name) == "" {
 			jsonOut(w, 422, map[string]string{"error": "Club name is required"})
 			return
 		}
+		x.Status = strings.ToLower(strings.TrimSpace(x.Status))
+		if x.Status != "" && x.Status != "active" && x.Status != "inactive" {
+			jsonOut(w, 422, map[string]string{"error": "Status must be active or inactive"})
+			return
+		}
 		var res sql.Result
-		res, err := db.Exec(`UPDATE clubs SET name=$1,description=$2,category=$3,coordinator_id=NULLIF($4,0) WHERE club_id=$5 AND ($4=0 OR EXISTS(SELECT 1 FROM users WHERE user_id=$4 AND role='coordinator'))`, strings.TrimSpace(x.Name), strings.TrimSpace(x.Description), strings.TrimSpace(x.Category), x.CoordinatorID, id)
+		res, err := db.Exec(`UPDATE clubs SET name=$1,description=$2,category=$3,status=CASE WHEN $4='' THEN status ELSE $4 END,coordinator_id=NULLIF($5,0) WHERE club_id=$6 AND ($5=0 OR EXISTS(SELECT 1 FROM users WHERE user_id=$5 AND role='coordinator'))`, strings.TrimSpace(x.Name), strings.TrimSpace(x.Description), strings.TrimSpace(x.Category), x.Status, x.CoordinatorID, id)
 		n := int64(0)
 		if err == nil {
 			n, _ = res.RowsAffected()
@@ -358,6 +399,7 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 		err := db.QueryRow(`SELECT club_id FROM clubs WHERE coordinator_id=$1`, uid).Scan(&id)
 		return id, err
 	}
+	registerSprint3Routes(router, db, protect, coordinatorClub, jsonOut)
 	registerPollRoutes(router, db, protect, coordinatorClub, jsonOut)
 	router.Handle("/api/coordinator/requests", protect(coord, func(w http.ResponseWriter, r *http.Request) {
 		uid, _ := utils.GetUserID(r.Context())
@@ -393,10 +435,29 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 			jsonOut(w, 422, map[string]string{"error": "status must be approved or rejected"})
 			return
 		}
-		res, e := db.Exec(`UPDATE memberships SET status=$1,decided_at=NOW(),decided_by=$2 WHERE membership_id=$3 AND club_id=$4 AND status='pending'`, x.Status, uid, id, cid)
-		n, _ := res.RowsAffected()
-		if e != nil || n == 0 {
+		tx, e := db.Begin()
+		if e != nil {
+			jsonOut(w, 500, map[string]string{"error": "Database error"})
+			return
+		}
+		defer tx.Rollback()
+		var studentID int
+		e = tx.QueryRow(`UPDATE memberships SET status=$1,decided_at=NOW(),decided_by=$2 WHERE membership_id=$3 AND club_id=$4 AND status='pending' RETURNING student_id`, x.Status, uid, id, cid).Scan(&studentID)
+		if e != nil {
 			jsonOut(w, 404, map[string]string{"error": "Pending request not found for your club"})
+			return
+		}
+		var clubName string
+		if e = tx.QueryRow(`SELECT name FROM clubs WHERE club_id=$1`, cid).Scan(&clubName); e != nil {
+			jsonOut(w, 500, map[string]string{"error": "Could not load club"})
+			return
+		}
+		title, message := "Club request approved", "Your request to join "+clubName+" was approved."
+		if x.Status == "rejected" {
+			title, message = "Club request not approved", "Your request to join "+clubName+" was rejected."
+		}
+		if _, e = tx.Exec(`INSERT INTO student_notifications(student_id,notification_type,title,message) VALUES($1,$2,$3,$4)`, studentID, "enrollment_"+x.Status, title, message); e != nil || tx.Commit() != nil {
+			jsonOut(w, 500, map[string]string{"error": "Could not save the decision notification"})
 			return
 		}
 		jsonOut(w, 200, map[string]string{"status": x.Status})
@@ -408,7 +469,7 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 			jsonOut(w, 404, map[string]string{"error": "No club assigned"})
 			return
 		}
-		rows, e := db.Query(`SELECT u.user_id,u.full_name,u.email FROM memberships m JOIN users u ON u.user_id=m.student_id WHERE m.club_id=$1 AND m.status='approved' ORDER BY u.full_name`, cid)
+		rows, e := db.Query(`SELECT m.membership_id,u.full_name,u.email,m.status FROM memberships m JOIN users u ON u.user_id=m.student_id WHERE m.club_id=$1 AND m.status IN ('approved','leave_requested') ORDER BY u.full_name`, cid)
 		if e != nil {
 			jsonOut(w, 500, map[string]string{"error": "Database error"})
 			return
@@ -417,16 +478,16 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 		out := []any{}
 		for rows.Next() {
 			var id int
-			var name, email string
-			if rows.Scan(&id, &name, &email) == nil {
-				out = append(out, map[string]any{"id": id, "name": name, "email": email})
+			var name, email, status string
+			if rows.Scan(&id, &name, &email, &status) == nil {
+				out = append(out, map[string]any{"id": id, "name": name, "email": email, "status": status})
 			}
 		}
 		jsonOut(w, 200, out)
 	})).Methods("GET")
 	router.Handle("/api/admin/clubs/{id}/members", protect(admin, func(w http.ResponseWriter, r *http.Request) {
 		cid, _ := strconv.Atoi(mux.Vars(r)["id"])
-		rows, e := db.Query(`SELECT u.user_id,u.full_name,u.email FROM memberships m JOIN users u ON u.user_id=m.student_id WHERE m.club_id=$1 AND m.status='approved' ORDER BY u.full_name`, cid)
+		rows, e := db.Query(`SELECT u.user_id,u.full_name,u.email FROM memberships m JOIN users u ON u.user_id=m.student_id WHERE m.club_id=$1 AND m.status IN ('approved','leave_requested') ORDER BY u.full_name`, cid)
 		if e != nil {
 			jsonOut(w, 500, map[string]string{"error": "Database error"})
 			return
@@ -457,7 +518,15 @@ func RegisterRoutes(router *mux.Router, db *sql.DB) error {
 				var cid sql.NullInt64
 				var cname sql.NullString
 				if rows.Scan(&id, &name, &email, &cid, &cname) == nil {
-					out = append(out, map[string]any{"id": id, "name": name, "email": email, "club_id": cid, "club_name": cname, "status": "Active"})
+					var clubID any
+					var clubName string
+					if cid.Valid {
+						clubID = cid.Int64
+					}
+					if cname.Valid {
+						clubName = cname.String
+					}
+					out = append(out, map[string]any{"id": id, "name": name, "email": email, "club_id": clubID, "club_name": clubName, "status": "Active"})
 				}
 			}
 			jsonOut(w, 200, out)

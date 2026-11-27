@@ -49,8 +49,16 @@ const Router = (() => {
 
     const content = document.getElementById("content");
     content.scrollTop = 0;
-    app().querySelector('[data-action="logout"]').addEventListener("click", async () => {
-      await Store.logout(); UI.toast("Logged out"); location.hash = "#/login";
+    app().querySelector('[data-action="logout"]').addEventListener("click", () => {
+      UI.showModal(app(), {
+        title: "Log out?",
+        body: "Are you sure you want to log out of your admin account?",
+        confirmLabel: "Log out",
+      }, async () => {
+        try { await Store.logout(); } catch (_) { /* Clear the local session even if the server session already expired. */ }
+        UI.toast("Logged out");
+        location.hash = "#/login";
+      });
     });
     v.mount && v.mount(content);
   }

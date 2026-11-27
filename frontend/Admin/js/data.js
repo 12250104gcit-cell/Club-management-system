@@ -14,8 +14,8 @@ const Store = (() => {
     clearSession() { authenticated=false; localStorage.removeItem("authToken"); localStorage.removeItem("adminUser"); document.cookie="club_token_share=; Path=/; SameSite=Lax; Max-Age=0"; document.cookie="club_user_share=; Path=/; SameSite=Lax; Max-Age=0"; },
     admin() { return db.admin; }, async updateAdmin(patch) { const fullName=`${patch.firstName} ${patch.lastName}`.trim(); const saved=await API.updateProfile({full_name:fullName,email:patch.email,phone:patch.phone,date_of_birth:patch.date_of_birth,gender:patch.gender}); const parts=saved.full_name.split(" "); Object.assign(db.admin,saved,{firstName:parts[0],lastName:parts.slice(1).join(" "),role:"Admin"}); localStorage.setItem("adminUser",JSON.stringify(saved)); document.cookie=`club_user_share=${encodeURIComponent(JSON.stringify(saved))}; Path=/; SameSite=Lax; Max-Age=86400`; return saved; },
     clubs() { return db.clubs; }, async refreshClubs() { db.clubs = await API.clubs(); return db.clubs; }, club(id) { return db.clubs.find(c => String(c.id) === String(id)); },
-    async addClub(data) { const out = await API.request("/clubs", { method: "POST", body: JSON.stringify({ name: data.name, description: data.description, category: data.category, coordinator_id: data.coordinatorId ? Number(data.coordinatorId) : null }) }); await reload(); return this.club(out.id); },
-    async updateClub(id, patch) { await API.request(`/clubs/${id}`, { method: "PUT", body: JSON.stringify({ name: patch.name, description: patch.description, category: patch.category, coordinator_id: patch.coordinatorId ? Number(patch.coordinatorId) : null }) }); await reload(); },
+    async addClub(data) { const out = await API.request("/clubs", { method: "POST", body: JSON.stringify({ name: data.name, description: data.description, category: data.category, status: data.status || "active", coordinator_id: data.coordinatorId ? Number(data.coordinatorId) : null }) }); await reload(); return this.club(out.id); },
+    async updateClub(id, patch) { await API.request(`/clubs/${id}`, { method: "PUT", body: JSON.stringify({ name: patch.name, description: patch.description, category: patch.category, status: String(patch.status || "active").toLowerCase(), coordinator_id: patch.coordinatorId ? Number(patch.coordinatorId) : null }) }); await reload(); },
     async deleteClub(id) { await API.request(`/clubs/${id}`, { method: "DELETE" }); await reload(); },
     async clubMembers(id) { return API.request(`/admin/clubs/${id}/members`); },
     coordinators() { return db.coordinators; }, async refreshCoordinators() { db.coordinators = await API.coordinators(); return db.coordinators; }, coordinator(id) { return db.coordinators.find(c => String(c.id) === String(id)); },
@@ -37,6 +37,6 @@ const Store = (() => {
       }
     },
     coordinatorName(id) { return this.coordinator(id)?.name || "Unassigned"; },
-    stats() { return { total: db.clubs.length, active: db.clubs.length, coordinators: db.coordinators.length }; },
+    stats() { return { total: db.clubs.length, active: db.clubs.filter(c => c.status === "Active").length, coordinators: db.coordinators.length }; },
   };
 })();

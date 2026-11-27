@@ -92,6 +92,11 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			http.Error(w, `{"error":"Invalid user information in token"}`, http.StatusUnauthorized)
 			return
 		}
+		var exists bool
+		if revocationDB == nil || revocationDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE user_id=$1 AND role=$2 AND is_active=TRUE)`, claims.UserID, claims.Role).Scan(&exists) != nil || !exists {
+			http.Error(w, `{"error":"Account is unavailable"}`, http.StatusUnauthorized)
+			return
+		}
 
 		// Check whether the user must change their default password
 		if claims.MustChangePassword && r.URL.Path != "/api/auth/change-password" && r.URL.Path != "/api/auth/me" {
