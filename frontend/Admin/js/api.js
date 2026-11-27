@@ -1,5 +1,5 @@
 /* Shared API client for the vanilla Admin portal. */
-const API_BASE_URL = "/api";
+const API_BASE_URL = String(window.APP_CONFIG?.apiBaseUrl || "/api").replace(/\/$/, "");
 let handoffPromise;
 
 function saveSession(token, user) {
@@ -88,6 +88,8 @@ async function coordinators() {
 
 function portalUrl(role) {
   const base = `${window.location.protocol}//${window.location.hostname}`;
+  const configured = window.APP_CONFIG?.portalUrls?.[role];
+  if (configured) return configured;
   if (role === "coordinator") return `${base}:5174/`;
   if (role === "admin") return `${base}:5175/`;
   return `${base}:5173/login`;
