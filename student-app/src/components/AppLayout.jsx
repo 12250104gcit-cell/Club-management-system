@@ -25,7 +25,17 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationError, setNotificationError] = useState("");
   const [membership, setMembership] = useState({ path: "", status: "loading", approved: null, error: "" });
+
+  useEffect(() => {
+    let active = true;
+    api("/student/notifications").then((items) => {
+      if (active) setNotifications(Array.isArray(items) ? items : []);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -34,7 +44,7 @@ export default function AppLayout() {
       try {
         const requests = await api("/student/requests");
         if (!active) return;
-        const approved = requests.find((request) => request.status?.toLowerCase() === "approved") || null;
+        const approved = requests.find((request) => ["approved", "leave_requested"].includes(request.status?.toLowerCase())) || null;
         setMembership({ path: location.pathname, status: approved ? "approved" : "locked", approved, error: "" });
       } catch (error) {
         if (active) setMembership({ path: location.pathname, status: "error", approved: null, error: error.message || "Could not check club membership." });
@@ -50,6 +60,17 @@ export default function AppLayout() {
     await api("/auth/logout", { method: "POST" }).catch(() => {});
     clearCurrentUser();
     navigate("/login", { replace: true });
+  };
+  const acknowledgeNotification = async () => {
+    const current = notifications[0];
+    if (!current) return;
+    setNotificationError("");
+    try {
+      await api(`/student/notifications/${current.id}/read`, { method: "POST" });
+      setNotifications((items) => items.filter((item) => item.id !== current.id));
+    } catch (error) {
+      setNotificationError(error.message || "Could not dismiss this notification.");
+    }
   };
 
   return (
@@ -105,6 +126,15 @@ export default function AppLayout() {
                 No
               </button>
             </div>
+          </Modal>
+        )}
+        {notifications[0] && (
+          <Modal
+            variant={notifications[0].type?.endsWith("rejected") ? "warning" : "success"}
+            title={notifications[0].title}
+            lines={[notifications[0].message, ...(notificationError ? [notificationError] : [])]}
+          >
+            <button type="button" className="btn-green" onClick={acknowledgeNotification}>Got it</button>
           </Modal>
         )}
       </div>

@@ -9,8 +9,9 @@ export default function Clubs() {
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  useEffect(() => { Promise.all([api("/clubs"), api("/student/requests")]).then(([c, r]) => { setClubs(c); setRequests(r); }).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
-  const myApplication = requests.find(r => r.status === "approved" || r.status === "pending");
+  const refresh = () => Promise.all([api("/clubs"), api("/student/requests")]).then(([c, r]) => { setClubs(c); setRequests(r); }).catch(e => setError(e.message)).finally(() => setLoading(false));
+  useEffect(() => { refresh(); }, []);
+  const myApplication = requests.find(r => ["approved", "pending", "leave_requested"].includes(r.status));
   const myClub = myApplication ? clubs.find(c => c.id === myApplication.club_id) : null;
 
   return (
@@ -43,6 +44,7 @@ export default function Clubs() {
                 <span className="pending-pill">{myApplication.status}</span>
               </div>
             )}
+            {myApplication.status === "leave_requested" && <div className="pending-bar"><span>Leave requested</span><span className="pending-pill">Leave requested</span></div>}
           </Link>
 
           <h2 className="section-heading light">Other Clubs</h2>
@@ -63,7 +65,7 @@ export default function Clubs() {
                 <strong>{club.name}</strong>
                 <p>{club.description}</p>
               </div>
-              {status && ["pending", "approved", "rejected"].includes(status) && <span>{status}</span>}
+              {status && ["pending", "approved", "rejected", "leave_requested", "left", "removed"].includes(status) && <span>{status === "leave_requested" ? "Leave requested" : status}</span>}
               <ArrowRight size={22} />
             </Link>
           );

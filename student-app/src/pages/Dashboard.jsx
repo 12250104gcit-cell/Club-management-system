@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const user = getCurrentUser();
-  useEffect(() => { Promise.all([api("/clubs"),api("/student/requests")]).then(([clubs,requests]) => { const active=requests.find(r=>r.status==="approved"||r.status==="pending"); setPending(active?.status==="pending"); if(active?.status==="approved"){const row=clubs.find(c=>c.id===active.club_id);const visual=staticClubs.find(c=>c.id===Number(active.club_id));if(row)setClub({...visual,...row,image:visual?.image||"/logo.png",logo:visual?.logo||"/logo.png"});} }).catch(e=>setError(e.message)).finally(() => setLoading(false)); },[]);
+  useEffect(() => { Promise.all([api("/clubs"),api("/student/requests")]).then(([clubs,requests]) => { const active=requests.find(r=>["approved","pending","leave_requested"].includes(r.status)); setPending(active?.status==="pending"); if(active?.status==="approved"||active?.status==="leave_requested"){const row=clubs.find(c=>c.id===active.club_id);const visual=staticClubs.find(c=>c.id===Number(active.club_id));if(row)setClub({...visual,...row,image:visual?.image||"/logo.png",logo:visual?.logo||"/logo.png"});} }).catch(e=>setError(e.message)).finally(() => setLoading(false)); },[]);
   const list = club
     ? announcements.filter((a) => a.clubId === club.id)
     : [];
