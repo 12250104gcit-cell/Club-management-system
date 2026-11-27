@@ -6,8 +6,8 @@ import {
   Plus,
   Search,
   CalendarDays,
-  BarChart3,
   MoreVertical,
+  Trash2,
 } from "lucide-react";
 
 
@@ -15,11 +15,30 @@ import {
 function AnnouncementManagement({
   onCreate,
   onView,
+  onEdit,
+  onDelete,
   announcements = [],
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [openMenu, setOpenMenu] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError("");
+    try {
+      await onDelete?.(deleteTarget);
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error.message || "Could not delete the announcement.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   const filteredAnnouncements = announcements.filter((announcement) => {
     const matchesSearch = announcement.title
@@ -67,7 +86,7 @@ function AnnouncementManagement({
       </div>
 
       <div className="announcement-filters">
-        {["All", "Published", "Pending"].map((item) => (
+        {["All", "Published"].map((item) => (
           <button
             type="button"
             key={item}
@@ -150,6 +169,8 @@ function AnnouncementManagement({
                         >
                           View Details
                         </button>
+                        <button type="button" className="announcement-dropdown-action" onClick={() => { setOpenMenu(null); onEdit?.(announcement); }}>Edit</button>
+                        <button type="button" className="announcement-dropdown-action" onClick={() => { setDeleteError(""); setDeleteTarget(announcement); setOpenMenu(null); }}>Delete</button>
                       </div>
                     )}
                   </div>
@@ -164,10 +185,6 @@ function AnnouncementManagement({
                   {announcement.date}
                 </span>
 
-                <span>
-                  <BarChart3 size={12} />
-                  {announcement.views ?? 0} views
-                </span>
               </div>
             </div>
           </article>
@@ -179,6 +196,17 @@ function AnnouncementManagement({
           </p>
         )}
       </section>
+      {deleteTarget && <div className="poll-modal-overlay"><div className="poll-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-announcement-heading" aria-describedby="delete-announcement-description">
+        <div className="poll-delete-icon"><Trash2 size={26} /></div>
+        <h2 id="delete-announcement-heading">Delete announcement?</h2>
+        <p id="delete-announcement-description">Are you sure you want to delete <strong>{deleteTarget.title}</strong>?</p>
+        <p>This action cannot be undone.</p>
+        {deleteError && <p role="alert">{deleteError}</p>}
+        <div className="poll-delete-actions">
+          <button type="button" className="poll-edit-cancel" disabled={deleteBusy} onClick={() => setDeleteTarget(null)}>Cancel</button>
+          <button type="button" className="poll-delete-confirm" disabled={deleteBusy} onClick={confirmDelete}>{deleteBusy ? "Deleting…" : "Delete announcement"}</button>
+        </div>
+      </div></div>}
     </main>
   );
 }

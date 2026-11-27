@@ -7,7 +7,15 @@ import {
   Pencil,
   Trash2,
   X,
+  CalendarDays,
+  CircleCheck,
 } from "lucide-react";
+
+const toLocalDateTimeValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 
 function PollManagement({
@@ -36,6 +44,10 @@ function PollManagement({
   const [editEndDate, setEditEndDate] = useState("");
   const [editOptions, setEditOptions] = useState([]);
   const [actionError, setActionError] = useState("");
+  const [showFutureDateWarning, setShowFutureDateWarning] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [pendingPollChanges, setPendingPollChanges] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const filteredPolls = polls.filter((poll) => {
     const matchesSearch = poll.title
@@ -53,7 +65,7 @@ function PollManagement({
     setEditingPoll(poll);
     setEditTitle(poll.title);
     setEditDescription(poll.description || "");
-    setEditEndDate(poll.endDate ? new Date(poll.endDate).toISOString().slice(0, 16) : "");
+    setEditEndDate(toLocalDateTimeValue(poll.endDate));
     setEditOptions(
       (poll.options || []).map((option) => ({ ...option }))
     );
@@ -133,20 +145,35 @@ function PollManagement({
 
     // Existing sample polls may not have an end date.
     // Validate only when a date is supplied or changed.
-    if (
-      editEndDate &&
-      new Date(editEndDate) <= new Date() &&
-      editEndDate !== (editingPoll.endDate || "")
-    ) {
-      alert("Please select a future end date.");
-      return;
+    if (editEndDate) {
+      const chosenDate = new Date(editEndDate);
+      const originalDate = editingPoll.endDate ? new Date(editingPoll.endDate) : null;
+      const dateChanged = !originalDate || Number.isNaN(originalDate.getTime()) || chosenDate.getTime() !== originalDate.getTime();
+      if (Number.isNaN(chosenDate.getTime()) || (dateChanged && chosenDate <= new Date())) {
+        setShowFutureDateWarning(true);
+        return;
+      }
     }
 
     setActionError("");
+    setPendingPollChanges({ ...editingPoll, title, description: editDescription.trim(), endDate: editEndDate, options: cleanOptions });
+    setShowSaveConfirmation(true);
+  };
+
+  const handleConfirmSaveEdit = async () => {
+    if (!pendingPollChanges) return;
+    setSavingEdit(true);
+    setActionError("");
     try {
-      await onUpdate({ ...editingPoll, title, description: editDescription.trim(), endDate: editEndDate, options: cleanOptions });
+      await onUpdate(pendingPollChanges);
       setEditingPoll(null);
-    } catch (e) { setActionError(e.message); }
+      setShowSaveConfirmation(false);
+      setPendingPollChanges(null);
+    } catch (e) {
+      setShowSaveConfirmation(false);
+      setPendingPollChanges(null);
+      setActionError(e.message);
+    } finally { setSavingEdit(false); }
   };
 
   // Delete after confirmation
@@ -328,7 +355,11 @@ function PollManagement({
                 id="edit-poll-end-date"
                 type="datetime-local"
                 value={editEndDate}
-                onChange={(e) => setEditEndDate(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditEndDate(value);
+                  if (value && (!Number.isFinite(new Date(value).getTime()) || new Date(value) <= new Date())) setShowFutureDateWarning(true);
+                }}
               />
 
               <label>Poll Options</label>
@@ -388,7 +419,35 @@ function PollManagement({
                   Save Changes
                 </button>
               </div>
+              {actionError && <p className="poll-edit-error" role="alert">{actionError}</p>}
             </form>
+          </div>
+        </div>
+      )}
+
+      {showFutureDateWarning && (
+        <div className="poll-modal-overlay">
+          <div className="poll-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="future-poll-date-heading" aria-describedby="future-poll-date-description">
+            <div className="poll-delete-icon poll-date-warning-icon"><CalendarDays size={26} /></div>
+            <h2 id="future-poll-date-heading">Please choose a future date</h2>
+            <p id="future-poll-date-description">A poll’s end date and time must be later than now.</p>
+            <div className="poll-delete-actions">
+              <button type="button" className="poll-delete-confirm poll-date-warning-confirm" onClick={() => { setShowFutureDateWarning(false); window.setTimeout(() => document.getElementById("edit-poll-end-date")?.focus(), 0); }}>Choose another date</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSaveConfirmation && pendingPollChanges && (
+        <div className="poll-modal-overlay">
+          <div className="poll-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="save-poll-changes-heading" aria-describedby="save-poll-changes-description">
+            <div className="poll-delete-icon decision-dialog-icon approve"><CircleCheck size={26} /></div>
+            <h2 id="save-poll-changes-heading">Save poll changes?</h2>
+            <p id="save-poll-changes-description">Save the updates to <strong>{pendingPollChanges.title}</strong>?</p>
+            <div className="poll-delete-actions">
+              <button type="button" className="poll-edit-cancel" disabled={savingEdit} onClick={() => { setShowSaveConfirmation(false); setPendingPollChanges(null); }}>Cancel</button>
+              <button type="button" className="poll-delete-confirm decision-confirm-approved" disabled={savingEdit} onClick={handleConfirmSaveEdit}>{savingEdit ? "Saving…" : "Save Changes"}</button>
+            </div>
           </div>
         </div>
       )}

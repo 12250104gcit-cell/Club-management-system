@@ -1,17 +1,11 @@
 
 import { useState } from "react";
-import {
-  ArrowLeft,
-  ImagePlus,
-  CalendarDays,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 function CreateAnnouncement({ onCancel, onCreate }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Event");
   const [description, setDescription] = useState("");
-  const [schedule, setSchedule] = useState("");
-  const [image, setImage] = useState(null);
 
   // Control the confirmation popup
   const [showConfirmation, setShowConfirmation] =
@@ -31,15 +25,6 @@ function CreateAnnouncement({ onCancel, onCreate }) {
       return;
     }
 
-    if (
-      schedule &&
-      (Number.isNaN(new Date(schedule).getTime()) ||
-        new Date(schedule) <= new Date())
-    ) {
-      alert("Please select a future date and time.");
-      return;
-    }
-
     // Open confirmation instead of publishing immediately
     setShowConfirmation(true);
   };
@@ -51,9 +36,7 @@ function CreateAnnouncement({ onCancel, onCreate }) {
       title: title.trim(),
       category,
       description: description.trim(),
-      schedule,
-      image,
-      status: schedule ? "Pending" : "Published",
+      status: "Published",
     };
 
     setShowConfirmation(false);
@@ -125,48 +108,6 @@ function CreateAnnouncement({ onCancel, onCreate }) {
           rows={5}
           required
         />
-
-        <label htmlFor="announcement-image">
-          Add Image (Optional)
-        </label>
-
-        <label
-          className="image-upload"
-          htmlFor="announcement-image"
-        >
-          <ImagePlus size={24} />
-
-          <span>
-            {image ? image.name : "Add Cover Image"}
-          </span>
-        </label>
-
-        <input
-          id="announcement-image"
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) =>
-            setImage(e.target.files?.[0] || null)
-          }
-        />
-
-        <label htmlFor="announcement-schedule">
-          Date & Time
-        </label>
-
-        <div className="schedule-input">
-          <CalendarDays size={18} />
-
-          <input
-            id="announcement-schedule"
-            type="datetime-local"
-            value={schedule}
-            onChange={(e) =>
-              setSchedule(e.target.value)
-            }
-          />
-        </div>
 
         {/* Action Buttons */}
         <div className="create-form-actions">

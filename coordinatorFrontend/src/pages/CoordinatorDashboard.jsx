@@ -1,18 +1,14 @@
 
-import { useEffect, useState } from "react";
 import {
   Users,
   Megaphone,
   BarChart3,
   ArrowRight,
 } from "lucide-react";
-import { api } from "../api";
 
 
 
 function CoordinatorDashboard({ onNavigate }) {
-  const [pendingRequests, setPendingRequests] = useState([]);
-  useEffect(() => { api("/coordinator/requests").then(rows => setPendingRequests(rows.filter(row => row.status === "Pending"))).catch(() => setPendingRequests([])); }, []);
   return (
     <main className="dashboard-page">
 
@@ -87,52 +83,6 @@ function CoordinatorDashboard({ onNavigate }) {
         </button>
       </section>
 
-      {/* Recent Activity */}
-      <h3 className="dashboard-section-title">
-        Recent Activity
-      </h3>
-
-      <section className="dashboard-activities">
-
-        {pendingRequests.length ? pendingRequests.slice(0, 3).map(request => <article className="activity-card" key={request.id}>
-          <div className="activity-icon">
-            <Users size={21} />
-          </div>
-
-          <div className="activity-information">
-            <strong>Join request</strong>
-            <p>{request.name} requested to join your club</p>
-            <small>{request.email}</small>
-          </div>
-
-          <div className="activity-meta">
-            <span className="activity-status activity-pending">
-              Pending
-            </span>
-          </div>
-        </article>) : <article className="activity-card"><div className="activity-icon"><Users size={21} /></div><div className="activity-information"><strong>No pending requests</strong><p>New requests for your club will appear here.</p></div></article>}
-
-        {/* StartUP Club */}
-        <article className="activity-card">
-          <div className="activity-icon">
-            <Megaphone size={21} />
-          </div>
-
-          <div className="activity-information">
-            <strong>StartUP Club</strong>
-            <p>Workshop on AI Tools</p>
-            <small>By Ong · 20 members</small>
-          </div>
-
-          <div className="activity-meta">
-            <span className="activity-time">5h ago</span>
-            <span className="activity-status activity-published">
-              Published
-            </span>
-          </div>
-        </article>
-
-      </section>
     </main>
   );
 }

@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { LogOut } from "lucide-react";
 
 import Login from "./pages/Login";
 import EnrollmentRequests from "./pages/EnrollmentRequests";
@@ -7,6 +8,7 @@ import CoordinatorDashboard from "./pages/CoordinatorDashboard";
 import BottomNavigation from "./components/BottomNavigation";
 import AnnouncementManagement from "./pages/AnnouncementManagement";
 import CreateAnnouncement from "./pages/CreateAnnouncement";
+import EditAnnouncement from "./pages/EditAnnouncement";
 import AnnouncementDetails from "./pages/AnnouncementDetails";
 import Header from "./components/Header";
 import PollManagement from "./pages/PollManagement";
@@ -22,35 +24,16 @@ import "./pages/styles.css";
 function App() {
   const [currentPage, setCurrentPage] = useState("checking");
   const [currentUser, setCurrentUser] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   useEffect(() => { api("/auth/me").then(user => { if(user.role === "coordinator") { setCurrentUser(user); setCurrentPage("home"); } else redirectForRole(user.role); }).catch(() => window.location.replace(portalUrl("student"))); }, []);
 
   // Store selected announcement and poll
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [selectedPoll, setSelectedPoll] = useState(null);
 
-  // Sample announcements
-  const [announcements, setAnnouncements] = useState([
-    {
-      id: 1,
-      title: "Workshop for AI Tools",
-      description:
-        "Join us for an interactive workshop on how to use AI tools for academic research and productivity.",
-      status: "Published",
-      date: "12 Oct 2026, 2:00 PM",
-      views: 45,
-      type: "announcement",
-    },
-    {
-      id: 2,
-      title: "New Club Registration Open",
-      description:
-        "Registrations for new clubs are now open for Semester 2.",
-      status: "Pending",
-      date: "12 Oct 2026, 9:00 AM",
-      views: 28,
-      type: "club",
-    },
-  ]);
+  const [announcements, setAnnouncements] = useState([]);
+  const loadAnnouncements = async () => { try { const data = await api("/coordinator/announcements"); setAnnouncements(data.map(a => ({...a, description:a.body || a.description, date:new Date(a.created_at).toLocaleString(), status:"Published", type:"announcement"}))); } catch(e) { setPollError(e.message); } };
+  useEffect(() => { if (currentPage === "announcements") loadAnnouncements(); }, [currentPage]);
 
   // Sample polls
   const [polls, setPolls] = useState([]);
@@ -70,22 +53,24 @@ function App() {
   };
 
   // Create announcement
-  const handleCreateAnnouncement = (announcement) => {
-    const newAnnouncement = {
-      ...announcement,
-      date: announcement.schedule
-        ? new Date(announcement.schedule).toLocaleString()
-        : new Date().toLocaleString(),
-      views: 0,
-      type: "announcement",
-    };
-
-    setAnnouncements((previous) => [
-      newAnnouncement,
-      ...previous,
-    ]);
-
+  const handleCreateAnnouncement = async (announcement) => {
+    await api("/coordinator/announcements", {method:"POST", body:JSON.stringify({title:announcement.title, category:announcement.category, body:announcement.description})});
+    await loadAnnouncements();
     setCurrentPage("announcements");
+  };
+  const handleUpdateAnnouncement = async (announcement, title, category, body) => {
+    await api(`/coordinator/announcements/${announcement.id}`, {method:"PUT", body:JSON.stringify({title,category,body})});
+    await loadAnnouncements();
+    setSelectedAnnouncement(null);
+    setCurrentPage("announcements");
+  };
+  const handleEditAnnouncement = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setCurrentPage("edit-announcement");
+  };
+  const handleDeleteAnnouncement = async (announcement) => {
+    await api(`/coordinator/announcements/${announcement.id}`, {method:"DELETE"});
+    await loadAnnouncements();
   };
 
   // View announcement details
@@ -159,7 +144,7 @@ function App() {
     <div className="coordinator-app">
 
       {/* Shared Header */}
-      <Header onLogout={handleLogout} />
+      <Header onLogout={() => setShowLogoutConfirm(true)} />
 
       {/* Coordinator Dashboard */}
       {currentPage === "home" && (
@@ -177,6 +162,8 @@ function App() {
       {currentPage === "announcements" && (
         <AnnouncementManagement
           announcements={announcements}
+          onEdit={handleEditAnnouncement}
+          onDelete={handleDeleteAnnouncement}
           onCreate={() =>
             setCurrentPage("create-announcement")
           }
@@ -189,6 +176,14 @@ function App() {
         <CreateAnnouncement
           onCancel={handleBackToAnnouncements}
           onCreate={handleCreateAnnouncement}
+        />
+      )}
+
+      {currentPage === "edit-announcement" && (
+        <EditAnnouncement
+          announcement={selectedAnnouncement}
+          onCancel={handleBackToAnnouncements}
+          onSave={handleUpdateAnnouncement}
         />
       )}
 
@@ -249,6 +244,16 @@ function App() {
         }
         onNavigate={handleNavigate}
       />
+
+      {showLogoutConfirm && <div className="poll-modal-overlay"><div className="poll-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="coordinator-logout-heading" aria-describedby="coordinator-logout-description">
+        <div className="poll-delete-icon"><LogOut size={26} /></div>
+        <h2 id="coordinator-logout-heading">Log out?</h2>
+        <p id="coordinator-logout-description">Are you sure you want to log out of your coordinator account?</p>
+        <div className="poll-delete-actions">
+          <button type="button" className="poll-edit-cancel" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+          <button type="button" className="poll-delete-confirm" onClick={handleLogout}>Log out</button>
+        </div>
+      </div></div>}
 
     </div>
   );

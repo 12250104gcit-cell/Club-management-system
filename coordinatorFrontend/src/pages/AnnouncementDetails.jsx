@@ -1,5 +1,5 @@
 
-import { ArrowLeft, CalendarDays, Eye, FileText, Link } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileText, Link } from "lucide-react";
 
 function AnnouncementDetails({ announcement, onBack }) {
   if (!announcement) {
@@ -25,7 +25,6 @@ function AnnouncementDetails({ announcement, onBack }) {
 
         <div className="details-meta">
           <span><CalendarDays size={14} /> {announcement.date}</span>
-          <span><Eye size={14} /> {announcement.views ?? 0} views</span>
         </div>
 
         {announcement.image && (
